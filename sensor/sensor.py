@@ -1,10 +1,25 @@
+
+from flask import Flask, request, jsonify
 import asyncio
-import websockets
 import json
 import random
 import time
+import threading
+import websockets
 
-address = "localhost" # "0.0.0.0"
+app = Flask(__name__)
+
+@app.route("/api/notification", methods=["POST"])
+def handle_notification():
+    data = request.get_json()
+    print("[센서에서 알림 수신]", data)
+    return jsonify({"status": "received"}), 200
+
+def run_flask():
+    app.run(host="0.0.0.0", port=6000)
+
+address = "0.0.0.0"
+port = 6789
 
 async def send_sensor_data(websocket):
     while True:
@@ -24,11 +39,15 @@ async def send_sensor_data(websocket):
             print("WebSocket send error:", e)
             break
 
-async def main():
-    print("WebSocket 서버 실행 준비 중...")
-    async with websockets.serve(send_sensor_data, address, 6789):
-        print(f"WebSocket 서버 실행 중 (ws://{address}:6789)")
-        await asyncio.Future()
+async def websocket_main():
+    async with websockets.serve(send_sensor_data, address, port):
+        print(f"WebSocket 서버 실행 중 (ws://{address}:{port})")
+        await asyncio.Future()  # 무한 대기
+
+def run_websocket():
+    asyncio.run(websocket_main())
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    run_websocket()
